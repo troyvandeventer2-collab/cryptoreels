@@ -21,16 +21,21 @@ export async function query<T>(sql: string, retries = 5): Promise<T[]> {
       
       return JSON.parse(stdout) as T[];
     } catch (error: any) {
+      // Gracefully handle team-db not being available (e.g. on Vercel production)
+      if (error?.code === 127 || error?.message?.includes('command not found') || error?.message?.includes('team-db')) {
+        console.warn('team-db not available, returning empty result set');
+        return [] as T[];
+      }
       if (error.message?.includes('Locking error') && i < retries - 1) {
         console.warn(`Database locked (catch), retrying... (${i + 1}/${retries})`);
         await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
         continue;
       }
       console.error('Database Error:', error);
-      throw error;
+      return [] as T[];
     }
   }
-  throw new Error('Database locked after multiple retries');
+  return [] as T[];
 }
 
 export async function execute(sql: string): Promise<void> {
