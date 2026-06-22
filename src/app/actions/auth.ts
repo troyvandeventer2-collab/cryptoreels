@@ -10,6 +10,11 @@ export async function login(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
+  // Hardcoded admin fallback (works even without database, e.g. on Vercel)
+  if (email === 'owner@cryptoreels.com' && password === 'adminpassword') {
+    return await loginWithUser({ id: 'admin-001', email: 'owner@cryptoreels.com', name: 'Owner', status: 'active' });
+  }
+
   const users = await query<any>(`SELECT * FROM users WHERE email = '${email}' AND password_hash = '${password}'`);
 
   if (users.length === 0) {
@@ -18,6 +23,10 @@ export async function login(formData: FormData) {
   }
 
   const user = users[0];
+  await loginWithUser(user);
+}
+
+async function loginWithUser(user: any) {
   const cookieStore = await cookies();
   cookieStore.set('user_id', user.id, { 
     httpOnly: true, 
@@ -73,6 +82,11 @@ export async function getSession() {
   const cookieStore = await cookies();
   const userId = cookieStore.get('user_id')?.value;
   if (!userId) return null;
+
+  // Hardcoded admin fallback
+  if (userId === 'admin-001') {
+    return { id: 'admin-001', email: 'owner@cryptoreels.com', name: 'Owner', status: 'active' };
+  }
 
   const users = await query<any>(`SELECT * FROM users WHERE id = '${userId}'`);
   return users.length > 0 ? users[0] : null;
